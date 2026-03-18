@@ -1,0 +1,196 @@
+.app {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0d0d1a 0%, #1a0533 100%);
+  color: #e2e8f0;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.header {
+  text-align: center;
+  padding: 40px 20px 20px;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 900;
+  background: linear-gradient(90deg, #a78bfa, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.header p {
+  color: #94a3b8;
+  font-size: 1rem;
+}
+
+.main {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.card h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #f1f5f9;
+}
+
+/* Upload */
+.upload-label {
+  display: block;
+  cursor: pointer;
+  border: 2px dashed rgba(124, 58, 237, 0.4);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 10px;
+}
+
+.upload-placeholder span {
+  font-size: 3rem;
+}
+
+.upload-placeholder p {
+  color: #94a3b8;
+}
+
+.preview-img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  display: block;
+}
+
+.analyse-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(90deg, #7c3aed, #ec4899);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.analyse-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.analyse-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Food tags */
+.food-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.food-tag {
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  color: #c4b5fd;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Macros */
+.macros-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.macro-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 8px;
+  border-radius: 12px;
+  gap: 4px;
+}
+
+.macro-value {
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.macro-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.calories {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+.calories .macro-value { color: #fbbf24; }
+
+.protein {
+  background: rgba(52, 211, 153, 0.15);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+.protein .macro-value { color: #34d399; }
+
+.carbs {
+  background: rgba(96, 165, 250, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+.carbs .macro-value { color: #60a5fa; }
+
+.fat {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+.fat .macro-value { color: #f87171; }
+
+/* Nudge */
+.nudge-card {
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.nudge-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #c4b5fd;
+  font-style: italic;
+}
+
+/* Error */
+.error-card {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+}

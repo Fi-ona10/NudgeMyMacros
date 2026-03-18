@@ -1,12 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from "react";
 
-const ONBOARDING_STEPS = {
-  GOAL: "goal",
-  HUNGER_SCALE: "hunger_scale",
-  DONE: "done",
-};
-
 const GOALS = [
   { id: 1, emoji: "💪", label: "Build muscle & get stronger" },
   { id: 2, emoji: "🔥", label: "Lose body fat" },
@@ -16,111 +10,304 @@ const GOALS = [
 ];
 
 const HUNGER_SCALE = [
-  { id: 1, color: "bg-green-500", emoji: "🟢", label: "Completely full, couldn't eat more" },
-  { id: 2, color: "bg-lime-400", emoji: "🟡", label: "Satisfied, don't need more" },
-  { id: 3, color: "bg-yellow-400", emoji: "🟠", label: "Neutral, could eat a little more" },
-  { id: 4, color: "bg-orange-500", emoji: "🔴", label: "Still hungry" },
-  { id: 5, color: "bg-red-600", emoji: "🔴", label: "Very hungry, meal wasn't enough" },
+  { id: 1, emoji: "🟢", label: "Completely full" },
+  { id: 2, emoji: "🟡", label: "Satisfied" },
+  { id: 3, emoji: "🟠", label: "Neutral" },
+  { id: 4, emoji: "🔴", label: "Still hungry" },
+  { id: 5, emoji: "🔴", label: "Very hungry" },
 ];
 
-const MacroBadge = ({ label, value, color }) => (
-  <div className={`flex flex-col items-center px-4 py-2 rounded-2xl ${color}`}>
-    <span className="text-xs font-semibold uppercase tracking-widest opacity-70">{label}</span>
-    <span className="text-lg font-bold">{value}</span>
-  </div>
-);
+const MOCK_MEAL_RESPONSE = {
+  foods: ["Grilled chicken breast (likely)", "Steamed broccoli", "White rice - large portion"],
+  macros: { protein: 42, carbs: 90, fat: 20, calories: 740 },
+  nudge: "Swap half the white rice for quinoa to keep the same volume but boost your protein and lasting energy - perfect for your muscle goal!",
+};
+
+const s = {
+  app: {
+    minHeight: "100vh",
+    background: "linear-gradient(135deg, #0f172a 0%, #134e4a 100%)",
+    display: "flex",
+    flexDirection: "column",
+    fontFamily: "'Segoe UI', system-ui, sans-serif",
+    color: "#f1f5f9",
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "14px 24px",
+    borderBottom: "1px solid rgba(255,255,255,0.1)",
+    background: "rgba(255,255,255,0.05)",
+    backdropFilter: "blur(12px)",
+    position: "sticky",
+    top: 0,
+    zIndex: 10,
+  },
+  headerLeft: { display: "flex", alignItems: "center", gap: 12 },
+  avatar: {
+    width: 38, height: 38, borderRadius: 12,
+    background: "linear-gradient(135deg, #34d399, #0d9488)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontWeight: 900, fontSize: 18, color: "#fff",
+    boxShadow: "0 4px 12px rgba(52,211,153,0.4)", flexShrink: 0,
+  },
+  appName: { fontWeight: 800, fontSize: 15, lineHeight: 1.2 },
+  appSub: { fontSize: 11, color: "#34d399", fontWeight: 500 },
+  goalPill: {
+    display: "flex", alignItems: "center", gap: 6,
+    background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)",
+    borderRadius: 999, padding: "6px 14px", fontSize: 12, color: "rgba(255,255,255,0.8)",
+  },
+  statsBar: {
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "10px 24px", background: "rgba(255,255,255,0.04)",
+    borderBottom: "1px solid rgba(255,255,255,0.08)", overflowX: "auto",
+  },
+  statDot: { width: 8, height: 8, borderRadius: "50%", background: "#34d399" },
+  statBadgeGreen: {
+    fontSize: 11, background: "rgba(52,211,153,0.15)", color: "#6ee7b7",
+    border: "1px solid rgba(52,211,153,0.3)", borderRadius: 999,
+    padding: "4px 12px", fontWeight: 700, whiteSpace: "nowrap",
+  },
+  statBadgeBlue: {
+    fontSize: 11, background: "rgba(56,189,248,0.15)", color: "#7dd3fc",
+    border: "1px solid rgba(56,189,248,0.3)", borderRadius: 999,
+    padding: "4px 12px", fontWeight: 700, whiteSpace: "nowrap",
+  },
+  statBadgeYellow: {
+    fontSize: 11, background: "rgba(251,191,36,0.15)", color: "#fde68a",
+    border: "1px solid rgba(251,191,36,0.3)", borderRadius: 999,
+    padding: "4px 12px", fontWeight: 700, whiteSpace: "nowrap",
+  },
+  statBadgePurple: {
+    fontSize: 11, background: "rgba(167,139,250,0.15)", color: "#c4b5fd",
+    border: "1px solid rgba(167,139,250,0.3)", borderRadius: 999,
+    padding: "4px 12px", fontWeight: 700, whiteSpace: "nowrap",
+  },
+  chatArea: {
+    flex: 1, overflowY: "auto", padding: "24px 16px",
+    display: "flex", flexDirection: "column", gap: 16,
+    maxWidth: 680, width: "100%", margin: "0 auto",
+  },
+  bubbleRowUser: {
+    display: "flex", justifyContent: "flex-end",
+    alignItems: "flex-end", gap: 10,
+  },
+  bubbleRowBot: {
+    display: "flex", justifyContent: "flex-start",
+    alignItems: "flex-end", gap: 10,
+  },
+  avatarUser: {
+    width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+    background: "linear-gradient(135deg, #64748b, #334155)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontWeight: 700, fontSize: 13, color: "#fff",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+  },
+  avatarBot: {
+    width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+    background: "linear-gradient(135deg, #34d399, #0d9488)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontWeight: 700, fontSize: 13, color: "#fff",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+  },
+  bubbleUser: {
+    maxWidth: 320, borderRadius: "20px 20px 4px 20px",
+    padding: "10px 14px", fontSize: 13.5, lineHeight: 1.6,
+    background: "linear-gradient(135deg, #10b981, #0d9488)",
+    color: "#f1f5f9", whiteSpace: "pre-line",
+    boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
+  },
+  bubbleBot: {
+    maxWidth: 320, borderRadius: "20px 20px 20px 4px",
+    padding: "10px 14px", fontSize: 13.5, lineHeight: 1.6,
+    background: "rgba(255,255,255,0.1)",
+    border: "1px solid rgba(255,255,255,0.15)",
+    color: "#f1f5f9", whiteSpace: "pre-line",
+    boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
+  },
+  mealImg: {
+    width: "100%", borderRadius: 14, marginBottom: 8,
+    maxHeight: 200, objectFit: "cover", display: "block",
+  },
+  analysisCard: {
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.15)",
+    borderRadius: 20, padding: 16,
+    display: "flex", flexDirection: "column", gap: 14,
+    maxWidth: 320, marginLeft: 42,
+  },
+  sectionLabel: {
+    fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+    textTransform: "uppercase", color: "#34d399", marginBottom: 6,
+    display: "block",
+  },
+  foodItem: {
+    display: "flex", alignItems: "center", gap: 8,
+    fontSize: 13, color: "rgba(255,255,255,0.85)", marginBottom: 3,
+  },
+  foodDot: {
+    width: 6, height: 6, borderRadius: "50%",
+    background: "#34d399", flexShrink: 0,
+  },
+  macroGrid: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 },
+  macroBadgeProtein: {
+    display: "flex", flexDirection: "column", alignItems: "center",
+    padding: "8px 4px", borderRadius: 12,
+    background: "rgba(52,211,153,0.2)", color: "#6ee7b7",
+  },
+  macroBadgeCarbs: {
+    display: "flex", flexDirection: "column", alignItems: "center",
+    padding: "8px 4px", borderRadius: 12,
+    background: "rgba(56,189,248,0.2)", color: "#7dd3fc",
+  },
+  macroBadgeFat: {
+    display: "flex", flexDirection: "column", alignItems: "center",
+    padding: "8px 4px", borderRadius: 12,
+    background: "rgba(251,191,36,0.2)", color: "#fde68a",
+  },
+  macroBadgeKcal: {
+    display: "flex", flexDirection: "column", alignItems: "center",
+    padding: "8px 4px", borderRadius: 12,
+    background: "rgba(167,139,250,0.2)", color: "#c4b5fd",
+  },
+  macroLabel: { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", opacity: 0.75 },
+  macroValue: { fontSize: 15, fontWeight: 800, marginTop: 2 },
+  nudgeBox: {
+    background: "rgba(52,211,153,0.15)",
+    border: "1px solid rgba(52,211,153,0.3)",
+    borderRadius: 14, padding: "10px 14px",
+  },
+  nudgeLabel: { fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#34d399", display: "block", marginBottom: 4 },
+  nudgeText: { fontSize: 13, color: "rgba(255,255,255,0.9)", lineHeight: 1.6 },
+  typingRow: { display: "flex", alignItems: "flex-end", gap: 10 },
+  typingBubble: {
+    display: "flex", alignItems: "center", gap: 5,
+    background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)",
+    borderRadius: "20px 20px 20px 4px", padding: "12px 16px",
+  },
+  goalGrid: {
+    display: "flex", flexDirection: "column", gap: 8,
+    padding: "0 16px 16px", maxWidth: 680, width: "100%", margin: "0 auto",
+  },
+  goalBtn: {
+    display: "flex", alignItems: "center", gap: 12,
+    background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)",
+    borderRadius: 16, padding: "12px 16px", color: "#f1f5f9",
+    fontSize: 13.5, fontWeight: 500, cursor: "pointer", textAlign: "left",
+    transition: "all 0.2s",
+  },
+  hungerGrid: {
+    display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8,
+    padding: "0 16px 16px", maxWidth: 680, width: "100%", margin: "0 auto",
+  },
+  hungerBtn: {
+    display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+    background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)",
+    borderRadius: 16, padding: "12px 6px", cursor: "pointer", color: "#f1f5f9",
+    transition: "all 0.2s",
+  },
+  hungerNum: { fontWeight: 800, fontSize: 16 },
+  hungerLabel: { fontSize: 10, color: "rgba(255,255,255,0.5)", textAlign: "center", lineHeight: 1.3 },
+  inputBar: {
+    padding: "12px 16px 24px", maxWidth: 680, width: "100%", margin: "0 auto",
+  },
+  inputInner: {
+    display: "flex", alignItems: "center", gap: 10,
+    background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)",
+    borderRadius: 999, padding: "8px 8px 8px 16px",
+    backdropFilter: "blur(12px)",
+  },
+  textInput: {
+    flex: 1, background: "transparent", border: "none", outline: "none",
+    color: "#f1f5f9", fontSize: 14,
+  },
+  camBtn: {
+    width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+    background: "linear-gradient(135deg, #34d399, #0d9488)",
+    border: "none", cursor: "pointer", fontSize: 18,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    boxShadow: "0 2px 8px rgba(52,211,153,0.4)",
+  },
+  sendBtnActive: {
+    width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+    background: "#10b981", border: "none", cursor: "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center",
+  },
+  sendBtnInactive: {
+    width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+    background: "rgba(255,255,255,0.1)", border: "none", cursor: "default",
+    display: "flex", alignItems: "center", justifyContent: "center",
+  },
+  hint: { textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 6 },
+};
 
 const TypingIndicator = () => (
-  <div className="flex items-center gap-1 px-4 py-3 bg-white/10 rounded-2xl w-fit">
-    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+  <div style={s.typingRow}>
+    <div style={s.avatarBot}>N</div>
+    <div style={s.typingBubble}>
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#34d399", display: "inline-block", animation: "bounce 1.2s infinite", animationDelay: "0ms" }} />
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#34d399", display: "inline-block", animation: "bounce 1.2s infinite", animationDelay: "150ms" }} />
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#34d399", display: "inline-block", animation: "bounce 1.2s infinite", animationDelay: "300ms" }} />
+    </div>
   </div>
 );
 
 const MealAnalysisCard = ({ foods, macros, nudge }) => (
-  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-5 space-y-4 max-w-sm">
+  <div style={s.analysisCard}>
     <div>
-      <p className="text-xs uppercase tracking-widest text-emerald-300 font-semibold mb-2">🍽️ What I see</p>
-      <ul className="space-y-1">
-        {foods.map((f, i) => (
-          <li key={i} className="text-sm text-white/90 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-            {f}
-          </li>
-        ))}
-      </ul>
+      <span style={s.sectionLabel}>What I see</span>
+      {foods.map((f, i) => (
+        <div key={i} style={s.foodItem}>
+          <span style={s.foodDot} />
+          {f}
+        </div>
+      ))}
     </div>
     <div>
-      <p className="text-xs uppercase tracking-widest text-emerald-300 font-semibold mb-2">📊 Your macros</p>
-      <div className="grid grid-cols-4 gap-2">
-        <MacroBadge label="Protein" value={`${macros.protein}g`} color="bg-emerald-500/30 text-emerald-100" />
-        <MacroBadge label="Carbs" value={`${macros.carbs}g`} color="bg-sky-500/30 text-sky-100" />
-        <MacroBadge label="Fat" value={`${macros.fat}g`} color="bg-amber-500/30 text-amber-100" />
-        <MacroBadge label="kcal" value={macros.calories} color="bg-purple-500/30 text-purple-100" />
+      <span style={s.sectionLabel}>Your macros</span>
+      <div style={s.macroGrid}>
+        <div style={s.macroBadgeProtein}>
+          <span style={s.macroLabel}>Protein</span>
+          <span style={s.macroValue}>{macros.protein}g</span>
+        </div>
+        <div style={s.macroBadgeCarbs}>
+          <span style={s.macroLabel}>Carbs</span>
+          <span style={s.macroValue}>{macros.carbs}g</span>
+        </div>
+        <div style={s.macroBadgeFat}>
+          <span style={s.macroLabel}>Fat</span>
+          <span style={s.macroValue}>{macros.fat}g</span>
+        </div>
+        <div style={s.macroBadgeKcal}>
+          <span style={s.macroLabel}>kcal</span>
+          <span style={s.macroValue}>{macros.calories}</span>
+        </div>
       </div>
     </div>
     {nudge && (
-      <div className="bg-emerald-500/20 border border-emerald-400/30 rounded-2xl px-4 py-3">
-        <p className="text-xs uppercase tracking-widest text-emerald-300 font-semibold mb-1">💬 Your nudge</p>
-        <p className="text-sm text-white/90 leading-relaxed">{nudge}</p>
+      <div style={s.nudgeBox}>
+        <span style={s.nudgeLabel}>Your nudge</span>
+        <p style={s.nudgeText}>{nudge}</p>
       </div>
     )}
   </div>
 );
 
-const ChatBubble = ({ role, children, image }) => {
-  const isUser = role === "user";
-  return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} gap-3 items-end`}>
-      {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-sm font-bold text-white shadow-lg flex-shrink-0">
-          N
-        </div>
-      )}
-      <div
-        className={`max-w-xs md:max-w-sm lg:max-w-md rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-md
-          ${isUser
-            ? "bg-emerald-500 text-white rounded-br-sm"
-            : "bg-white/10 backdrop-blur-md border border-white/20 text-white/90 rounded-bl-sm"
-          }`}
-      >
-        {image && (
-          <img src={image} alt="Meal" className="rounded-2xl mb-2 w-full object-cover max-h-52" />
-        )}
-        {children}
-      </div>
-      {isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-sm font-bold text-white shadow-lg flex-shrink-0">
-          Y
-        </div>
-      )}
-    </div>
-  );
-};
-
-const MOCK_MEAL_RESPONSE = {
-  foods: ["Grilled chicken breast (likely)", "Steamed broccoli", "White rice – large portion"],
-  macros: { protein: 42, carbs: 90, fat: 20, calories: 740 },
-  nudge: "Swap half the white rice for quinoa to keep the same volume but boost your protein and lasting energy — perfect for your muscle goal! 💪",
-};
-
 export default function NudgeMyMacros() {
-  const [onboardingStep, setOnboardingStep] = useState(ONBOARDING_STEPS.GOAL);
+  const [step, setStep] = useState("goal");
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [messages, setMessages] = useState([
     {
       role: "assistant",
       type: "text",
-      content:
-        "Hey! 👋 I'm Nudge — I'll analyze your meals and give you one small, easy nudge after each one. Before we start, two quick things:\n\n**What's your main goal right now?**",
+      content: "Hey! I'm Nudge - I'll analyze your meals and give you one small, easy nudge after each one.\n\nWhat's your main goal right now?",
     },
   ]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [awaitingHunger, setAwaitingHunger] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [showHungerPicker, setShowHungerPicker] = useState(false);
+  const [showHunger, setShowHunger] = useState(false);
   const bottomRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -128,27 +315,26 @@ export default function NudgeMyMacros() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const pushMessage = (msg) => setMessages((prev) => [...prev, msg]);
+  const push = (msg) => setMessages((p) => [...p, msg]);
 
-  const simulateTyping = (callback, delay = 1400) => {
+  const simulateTyping = (cb, delay = 1400) => {
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
-      callback();
+      cb();
     }, delay);
   };
 
   const handleGoalSelect = (goal) => {
     setSelectedGoal(goal);
-    pushMessage({ role: "user", type: "text", content: `${goal.emoji} ${goal.label}` });
+    push({ role: "user", type: "text", content: goal.emoji + " " + goal.label });
     simulateTyping(() => {
-      pushMessage({
+      push({
         role: "assistant",
         type: "text",
-        content:
-          `Perfect! **${goal.label}** — I've got you. 🎯\n\nAnd one last thing — after each meal you log, I'll ask you to rate your hunger:\n\n🟢 1 — Completely full\n🟡 2 — Satisfied\n🟠 3 — Neutral\n🔴 4 — Still hungry\n🔴 5 — Very hungry\n\nThat's it — now upload your first meal photo whenever you're ready! 📸`,
+        content: "Perfect! " + goal.label + " - I've got you.\n\nAfter each meal, I'll ask you to rate your hunger:\n\n1 - Completely full\n2 - Satisfied\n3 - Neutral\n4 - Still hungry\n5 - Very hungry\n\nNow upload your first meal photo whenever you're ready!",
       });
-      setOnboardingStep(ONBOARDING_STEPS.DONE);
+      setStep("done");
     });
   };
 
@@ -156,55 +342,53 @@ export default function NudgeMyMacros() {
     const file = e.target.files[0];
     if (!file) return;
     const url = URL.createObjectURL(file);
-    setPhotoPreview(url);
-    pushMessage({ role: "user", type: "image", content: "Here's my meal!", image: url });
+    push({ role: "user", type: "image", content: "Here's my meal!", image: url });
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
-      pushMessage({
+      push({
         role: "assistant",
         type: "analysis",
         analysis: MOCK_MEAL_RESPONSE,
-        content: "Great meal snap! Here's what I found 👇",
+        content: "Great snap! Here's what I found",
       });
       setTimeout(() => {
-        pushMessage({
-          role: "assistant",
-          type: "text",
-          content: "❓ **How full are you?** Rate 1–5 using the scale above — just tap below!",
-        });
-        setAwaitingHunger(true);
-        setShowHungerPicker(true);
+        push({ role: "assistant", type: "text", content: "How full are you? Tap a number below!" });
+        setShowHunger(true);
       }, 600);
     }, 2000);
     e.target.value = "";
   };
 
   const handleHungerSelect = (h) => {
-    setShowHungerPicker(false);
-    setAwaitingHunger(false);
-    pushMessage({ role: "user", type: "text", content: `${h.emoji} ${h.id} — ${h.label}` });
+    setShowHunger(false);
+    push({ role: "user", type: "text", content: h.emoji + " " + h.id + " - " + h.label });
     simulateTyping(() => {
-      pushMessage({
-        role: "assistant",
-        type: "text",
-        content:
-          h.id >= 4
-            ? "Got it — sounds like this meal wasn't quite enough. Next time try adding a palm-sized protein source to keep hunger at bay longer. You're doing great logging this! 🙌"
-            : "Awesome — sounds like a solid meal! Keep it up and log your next one when you're ready 📸",
-      });
+      if (h.id >= 4) {
+        push({
+          role: "assistant",
+          type: "text",
+          content: "Got it - this meal wasn't quite enough. Next time try adding a palm-sized protein source to stay fuller longer. You're doing great!",
+        });
+      } else {
+        push({
+          role: "assistant",
+          type: "text",
+          content: "Awesome - solid meal! Here's your nudge:\n\n" + MOCK_MEAL_RESPONSE.nudge,
+        });
+      }
     });
   };
 
-  const handleSendText = () => {
+  const handleSend = () => {
     if (!inputText.trim()) return;
-    pushMessage({ role: "user", type: "text", content: inputText });
+    push({ role: "user", type: "text", content: inputText });
     setInputText("");
     simulateTyping(() => {
-      pushMessage({
+      push({
         role: "assistant",
         type: "text",
-        content: "Got it! Feel free to upload a meal photo whenever you're ready and I'll give you your macros and nudge. 📸",
+        content: "Got it! Upload a meal photo whenever you're ready and I'll give you your macros and nudge.",
       });
     });
   };
@@ -212,149 +396,151 @@ export default function NudgeMyMacros() {
   const renderMessage = (msg, i) => {
     if (msg.type === "analysis") {
       return (
-        <div key={i} className="flex flex-col gap-2 items-start">
-          <ChatBubble role="assistant">
-            <span>{msg.content}</span>
-          </ChatBubble>
-          <div className="ml-11">
-            <MealAnalysisCard
-              foods={msg.analysis.foods}
-              macros={msg.analysis.macros}
-              nudge={null}
-            />
+        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={s.bubbleRowBot}>
+            <div style={s.avatarBot}>N</div>
+            <div style={s.bubbleBot}>{msg.content}</div>
           </div>
+          <MealAnalysisCard
+            foods={msg.analysis.foods}
+            macros={msg.analysis.macros}
+            nudge={msg.analysis.nudge}
+          />
+        </div>
+      );
+    }
+    if (msg.role === "user") {
+      return (
+        <div key={i} style={s.bubbleRowUser}>
+          <div style={s.bubbleUser}>
+            {msg.image && <img src={msg.image} alt="Meal" style={s.mealImg} />}
+            {msg.content}
+          </div>
+          <div style={s.avatarUser}>Y</div>
         </div>
       );
     }
     return (
-      <ChatBubble key={i} role={msg.role} image={msg.image}>
-        <span className="whitespace-pre-line">{msg.content}</span>
-      </ChatBubble>
+      <div key={i} style={s.bubbleRowBot}>
+        <div style={s.avatarBot}>N</div>
+        <div style={s.bubbleBot}>{msg.content}</div>
+      </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-white/10 backdrop-blur-md bg-white/5 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-black text-lg shadow-lg">
-            N
-          </div>
-          <div>
-            <h1 className="text-white font-bold text-base leading-tight">NudgeMyMacros</h1>
-            <p className="text-emerald-400 text-xs font-medium">Your personal nutrition coach</p>
-          </div>
-        </div>
-        {selectedGoal && (
-          <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1.5">
-            <span className="text-sm">{selectedGoal.emoji}</span>
-            <span className="text-white/70 text-xs font-medium hidden sm:block">{selectedGoal.label}</span>
-          </div>
-        )}
-      </header>
+    <>
+      <style>{`
+        @keyframes bounce {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-6px); }
+        }
+        button:hover { opacity: 0.85; }
+        input::placeholder { color: rgba(255,255,255,0.35); }
+      `}</style>
 
-      {/* Stats bar - only after onboarding */}
-      {onboardingStep === ONBOARDING_STEPS.DONE && (
-        <div className="flex items-center gap-4 px-6 py-3 bg-white/5 border-b border-white/10 overflow-x-auto">
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-white/60 text-xs">Today</span>
-          </div>
-          <div className="flex gap-3 flex-shrink-0">
-            <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full px-3 py-1 font-semibold">Protein: 42g</span>
-            <span className="text-xs bg-sky-500/20 text-sky-300 border border-sky-500/30 rounded-full px-3 py-1 font-semibold">Carbs: 90g</span>
-            <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full px-3 py-1 font-semibold">Fat: 20g</span>
-            <span className="text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-full px-3 py-1 font-semibold">740 kcal</span>
-          </div>
-        </div>
-      )}
+      <div style={s.app}>
 
-      {/* Chat area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 max-w-2xl w-full mx-auto">
-        {messages.map((msg, i) => renderMessage(msg, i))}
-        {isTyping && (
-          <div className="flex items-end gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-sm font-bold text-white shadow-lg flex-shrink-0">
-              N
+        <header style={s.header}>
+          <div style={s.headerLeft}>
+            <div style={s.avatar}>N</div>
+            <div>
+              <div style={s.appName}>NudgeMyMacros</div>
+              <div style={s.appSub}>Your personal nutrition coach</div>
             </div>
-            <TypingIndicator />
+          </div>
+          {selectedGoal && (
+            <div style={s.goalPill}>
+              <span>{selectedGoal.emoji}</span>
+              <span>{selectedGoal.label}</span>
+            </div>
+          )}
+        </header>
+
+        {step === "done" && (
+          <div style={s.statsBar}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <div style={s.statDot} />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Today</span>
+            </div>
+            <div style={s.statBadgeGreen}>Protein: 42g</div>
+            <div style={s.statBadgeBlue}>Carbs: 90g</div>
+            <div style={s.statBadgeYellow}>Fat: 20g</div>
+            <div style={s.statBadgePurple}>740 kcal</div>
           </div>
         )}
-        <div ref={bottomRef} />
-      </div>
 
-      {/* Goal picker */}
-      {onboardingStep === ONBOARDING_STEPS.GOAL && (
-        <div className="px-4 pb-4 max-w-2xl w-full mx-auto">
-          <div className="grid grid-cols-1 gap-2">
+        <div style={s.chatArea}>
+          {messages.map((msg, i) => renderMessage(msg, i))}
+          {isTyping && <TypingIndicator />}
+          <div ref={bottomRef} />
+        </div>
+
+        {step === "goal" && (
+          <div style={s.goalGrid}>
             {GOALS.map((g) => (
-              <button
-                key={g.id}
-                onClick={() => handleGoalSelect(g)}
-                className="flex items-center gap-3 bg-white/10 hover:bg-emerald-500/30 border border-white/20 hover:border-emerald-400/50 text-white rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200 text-left"
-              >
-                <span className="text-xl">{g.emoji}</span>
-                <span>{g.id}️⃣ {g.label}</span>
+              <button key={g.id} style={s.goalBtn} onClick={() => handleGoalSelect(g)}>
+                <span style={{ fontSize: 20 }}>{g.emoji}</span>
+                <span>{g.id}. {g.label}</span>
               </button>
             ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Hunger picker */}
-      {showHungerPicker && (
-        <div className="px-4 pb-4 max-w-2xl w-full mx-auto">
-          <p className="text-white/50 text-xs text-center mb-3 uppercase tracking-widest font-semibold">How full are you?</p>
-          <div className="grid grid-cols-5 gap-2">
-            {HUNGER_SCALE.map((h) => (
-              <button
-                key={h.id}
-                onClick={() => handleHungerSelect(h)}
-                className="flex flex-col items-center gap-1 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 rounded-2xl px-2 py-3 transition-all duration-200"
-              >
-                <span className="text-xl">{h.emoji}</span>
-                <span className="text-white font-bold text-sm">{h.id}</span>
-                <span className="text-white/50 text-xs text-center leading-tight hidden sm:block">{h.label.split(",")[0]}</span>
+        {showHunger && (
+          <div style={{ padding: "0 16px 16px", maxWidth: 680, width: "100%", margin: "0 auto" }}>
+            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 10, letterSpacing: 1.5, textTransform: "uppercase" }}>
+              How full are you?
+            </p>
+            <div style={s.hungerGrid}>
+              {HUNGER_SCALE.map((h) => (
+                <button key={h.id} style={s.hungerBtn} onClick={() => handleHungerSelect(h)}>
+                  <span style={{ fontSize: 22 }}>{h.emoji}</span>
+                  <span style={s.hungerNum}>{h.id}</span>
+                  <span style={s.hungerLabel}>{h.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === "done" && !showHunger && (
+          <div style={s.inputBar}>
+            <div style={s.inputInner}>
+              <button style={s.camBtn} onClick={() => fileRef.current?.click()}>
+                Cam
               </button>
-            ))}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handlePhotoUpload}
+              />
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                placeholder="Ask Nudge anything..."
+                style={s.textInput}
+              />
+              <button
+                style={inputText.trim() ? s.sendBtnActive : s.sendBtnInactive}
+                onClick={handleSend}
+                disabled={!inputText.trim()}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            </div>
+            <p style={s.hint}>Tap the camera button to log a meal</p>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Input bar */}
-      {onboardingStep === ONBOARDING_STEPS.DONE && !showHungerPicker && (
-        <div className="px-4 pb-6 pt-2 max-w-2xl w-full mx-auto">
-          <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl px-4 py-3">
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white shadow-md hover:scale-105 transition-transform flex-shrink-0"
-              title="Upload meal photo"
-            >
-              📸
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendText()}
-              placeholder="Ask Nudge anything…"
-              className="flex-1 bg-transparent text-white placeholder-white/40 text-sm outline-none"
-            />
-            <button
-              onClick={handleSendText}
-              disabled={!inputText.trim()}
-              className="w-10 h-10 rounded-2xl bg-emerald-500 disabled:bg-white/10 flex items-center justify-center text-white shadow-md hover:bg-emerald-400 disabled:cursor-not-allowed transition-all flex-shrink-0"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-              </svg>
-            </button>
-          </div>
-          <p className="text-center text-white/30 text-xs mt-2">📸 Tap the camera to log a meal</p>
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }

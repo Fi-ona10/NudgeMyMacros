@@ -17,12 +17,6 @@ const HUNGER_SCALE = [
   { id: 5, emoji: "🔴", label: "Very hungry" },
 ];
 
-const MOCK_MEAL_RESPONSE = {
-  foods: ["Grilled chicken breast (likely)", "Steamed broccoli", "White rice - large portion"],
-  macros: { protein: 42, carbs: 90, fat: 20, calories: 740 },
-  nudge: "Swap half the white rice for quinoa to keep the same volume but boost your protein and lasting energy - perfect for your muscle goal!",
-};
-
 const s = {
   app: {
     minHeight: "100vh",
@@ -308,6 +302,8 @@ export default function NudgeMyMacros() {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showHunger, setShowHunger] = useState(false);
+  const [lastMealData, setLastMealData] = useState(null); // ← NEW
+  const [todayMacros, setTodayMacros] = useState({ protein: 0, carbs: 0, fat: 0, calories: 0 }); // ← NEW
   const bottomRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -338,31 +334,90 @@ export default function NudgeMyMacros() {
     });
   };
 
-  const handlePhotoUpload = (e) => {
+  // ── REAL API CALL ─────────────────────────────────────────────────────────
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const url = URL.createObjectURL(file);
     push({ role: "user", type: "image", content: "Here's my meal!", image: url });
     setIsTyping(true);
-    setTimeout(() => {
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = async () => {
+        // Strip the "data:image/jpeg;base64," prefix
+        const base64 = (reader.result as string).split(',')[1];
+
+        const response = await fetch('http://localhost:3001/api/meal/analyse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: base64,
+            userId: 'guest',
+          }),
+        });
+
+        const data = await response.json();
+
+        // Update today's running macro totals in the stats bar
+        setTodayMacros((prev) => ({
+          protein: prev.protein + (data.macros?.protein ?? 0),
+          carbs: prev.carbs + (data.macros?.carbs ?? 0),
+          fat: prev.fat + (data.macros?.fat ?? 0),
+          calories: prev.calories + (data.macros?.calories ?? 0),
+        }));
+
+        setLastMealData(data);
+        setIsTyping(false);
+
+        push({
+          role: "assistant",
+          type: "analysis",
+          content: "Great snap! Here's what I found",
+          analysis: {
+            foods: data.foodItems,
+            macros: data.macros,
+            nudge: data.nudge,
+          },
+        });
+
+        setTimeout(() => {
+          push({ role: "assistant", type: "text", content: "How full are you? Tap a number below!" });
+          setShowHunger(true);
+        }, 600);
+      };
+    } catch (err) {
       setIsTyping(false);
       push({
         role: "assistant",
-        type: "analysis",
-        analysis: MOCK_MEAL_RESPONSE,
-        content: "Great snap! Here's what I found",
+        type: "text",
+        content: "Sorry, something went wrong analysing your meal. Try again!",
       });
-      setTimeout(() => {
-        push({ role: "assistant", type: "text", content: "How full are you? Tap a number below!" });
-        setShowHunger(true);
-      }, 600);
-    }, 2000);
+    }
+
     e.target.value = "";
   };
 
-  const handleHungerSelect = (h) => {
+  // ── REAL HUNGER SAVE ──────────────────────────────────────────────────────
+  const handleHungerSelect = async (h) => {
     setShowHunger(false);
     push({ role: "user", type: "text", content: h.emoji + " " + h.id + " - " + h.label });
+
+    try {
+      await fetch('http://localhost:3001/api/meal/hunger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'guest',
+          rating: h.id,
+        }),
+      });
+    } catch (err) {
+      console.warn('Failed to save hunger rating:', err);
+    }
+
     simulateTyping(() => {
       if (h.id >= 4) {
         push({
@@ -374,7 +429,7 @@ export default function NudgeMyMacros() {
         push({
           role: "assistant",
           type: "text",
-          content: "Awesome - solid meal! Here's your nudge:\n\n" + MOCK_MEAL_RESPONSE.nudge,
+          content: "Awesome - solid meal! Keep it up 💪",
         });
       }
     });
@@ -457,16 +512,17 @@ export default function NudgeMyMacros() {
           )}
         </header>
 
+        {/* ── Stats bar now uses REAL running totals ── */}
         {step === "done" && (
           <div style={s.statsBar}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
               <div style={s.statDot} />
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Today</span>
             </div>
-            <div style={s.statBadgeGreen}>Protein: 42g</div>
-            <div style={s.statBadgeBlue}>Carbs: 90g</div>
-            <div style={s.statBadgeYellow}>Fat: 20g</div>
-            <div style={s.statBadgePurple}>740 kcal</div>
+            <div style={s.statBadgeGreen}>Protein: {todayMacros.protein}g</div>
+            <div style={s.statBadgeBlue}>Carbs: {todayMacros.carbs}g</div>
+            <div style={s.statBadgeYellow}>Fat: {todayMacros.fat}g</div>
+            <div style={s.statBadgePurple}>{todayMacros.calories} kcal</div>
           </div>
         )}
 

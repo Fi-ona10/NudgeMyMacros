@@ -7,8 +7,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const router = Router();
 
-// ✅ FIX: Lazy getter — only runs AFTER dotenv.config() in server.ts
-// Previously, createClient() ran at import time before env vars were loaded
 function getSupabase() {
   return createClient(
     process.env.SUPABASE_URL!,
@@ -16,30 +14,20 @@ function getSupabase() {
   );
 }
 
-// ─── POST /api/meal/analyse ───────────────────────────────────────────────────
-// Identifies food from image, looks up nutrition, calculates macros,
-// generates a nudge, and optionally persists the meal to Supabase
 router.post('/analyse', async (req: Request, res: Response) => {
   try {
     const { image, userId } = req.body;
+    console.log('📸 Image received:', image ? `YES (${image.length} chars, starts: ${image.slice(0, 30)})` : 'NO/EMPTY');
 
     if (!image) {
       return res.status(400).json({ error: 'No image provided' });
     }
 
-    // Step 1: Identify food items from image (mock until Vision API is wired)
     const foodItems = await analyseImage(image);
-
-    // Step 2: Look up nutrition data from USDA
     const nutritionData = await lookupNutrition(foodItems);
-
-    // Step 3: Calculate total macros
     const macros = calculateMacros(nutritionData);
-
-    // Step 4: Generate motivational nudge (mock until LLM is wired)
     const nudge = await generateNudge(macros);
 
-    // Step 5: Persist meal to Supabase (only if userId is provided)
     if (userId) {
       const { error: dbError } = await getSupabase()
         .from('meals')
@@ -56,7 +44,6 @@ router.post('/analyse', async (req: Request, res: Response) => {
         });
 
       if (dbError) {
-        // Log but don't fail the request — meal data still returns to user
         console.error('⚠️  Failed to save meal to Supabase:', dbError.message);
       }
     }
@@ -78,8 +65,6 @@ router.post('/analyse', async (req: Request, res: Response) => {
   }
 });
 
-// ─── POST /api/meal/hunger ────────────────────────────────────────────────────
-// Saves a hunger rating (1–5) after a meal to track satiety over time
 router.post('/hunger', async (req: Request, res: Response) => {
   try {
     const { userId, rating, mealId } = req.body;
@@ -114,4 +99,3 @@ router.post('/hunger', async (req: Request, res: Response) => {
 });
 
 export default router;
-

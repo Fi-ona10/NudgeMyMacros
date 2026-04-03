@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 const USDA_BASE = 'https://api.nal.usda.gov/fdc/v1';
-const API_KEY = process.env.USDA_API_KEY || 'DEMO_KEY';
 
 export interface FoodNutrition {
   name: string;
@@ -14,6 +13,8 @@ export interface FoodNutrition {
 export async function lookupNutrition(
   foodItems: string[]
 ): Promise<FoodNutrition[]> {
+  const API_KEY = process.env.USDA_API_KEY || 'DEMO_KEY'; // ✅ read at call time
+  console.log('🔑 USDA key loaded:', API_KEY.slice(0, 8) + '...');
   const results: FoodNutrition[] = [];
 
   for (const item of foodItems) {

@@ -252,10 +252,10 @@ const MealAnalysisCard = ({ foods, macros, nudge }) => (
   <div style={s.analysisCard}>
     <div>
       <span style={s.sectionLabel}>What I see</span>
-      {foods.map((f, i) => (
+      {(foods ?? []).map((item, i) => (
         <div key={i} style={s.foodItem}>
           <span style={s.foodDot} />
-          {f}
+          {item}
         </div>
       ))}
     </div>
@@ -264,19 +264,19 @@ const MealAnalysisCard = ({ foods, macros, nudge }) => (
       <div style={s.macroGrid}>
         <div style={s.macroBadgeProtein}>
           <span style={s.macroLabel}>Protein</span>
-          <span style={s.macroValue}>{macros.protein}g</span>
+          <span style={s.macroValue}>{macros?.protein ?? 0}g</span>
         </div>
         <div style={s.macroBadgeCarbs}>
           <span style={s.macroLabel}>Carbs</span>
-          <span style={s.macroValue}>{macros.carbs}g</span>
+          <span style={s.macroValue}>{macros?.carbs ?? 0}g</span>
         </div>
         <div style={s.macroBadgeFat}>
           <span style={s.macroLabel}>Fat</span>
-          <span style={s.macroValue}>{macros.fat}g</span>
+          <span style={s.macroValue}>{macros?.fat ?? 0}g</span>
         </div>
         <div style={s.macroBadgeKcal}>
           <span style={s.macroLabel}>kcal</span>
-          <span style={s.macroValue}>{macros.calories}</span>
+          <span style={s.macroValue}>{macros?.calories ?? 0}</span>
         </div>
       </div>
     </div>
@@ -302,8 +302,8 @@ export default function NudgeMyMacros() {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showHunger, setShowHunger] = useState(false);
-  const [lastMealData, setLastMealData] = useState(null); // ← NEW
-  const [todayMacros, setTodayMacros] = useState({ protein: 0, carbs: 0, fat: 0, calories: 0 }); // ← NEW
+  const [lastMealData, setLastMealData] = useState(null);
+  const [todayMacros, setTodayMacros] = useState({ protein: 0, carbs: 0, fat: 0, calories: 0 });
   const bottomRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -334,7 +334,6 @@ export default function NudgeMyMacros() {
     });
   };
 
-  // ── REAL API CALL ─────────────────────────────────────────────────────────
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -345,62 +344,75 @@ export default function NudgeMyMacros() {
 
     try {
       const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = async () => {
-        // Strip the "data:image/jpeg;base64," prefix
-        const base64 = (reader.result as string).split(',')[1];
 
-        const response = await fetch('http://localhost:3001/api/meal/analyse', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            image: base64,
-            userId: 'guest',
-          }),
-        });
-
-        const data = await response.json();
-
-        // Update today's running macro totals in the stats bar
-        setTodayMacros((prev) => ({
-          protein: prev.protein + (data.macros?.protein ?? 0),
-          carbs: prev.carbs + (data.macros?.carbs ?? 0),
-          fat: prev.fat + (data.macros?.fat ?? 0),
-          calories: prev.calories + (data.macros?.calories ?? 0),
-        }));
-
-        setLastMealData(data);
+      reader.onerror = (err) => {
+        console.error('❌ FileReader error:', err);
         setIsTyping(false);
-
-        push({
-          role: "assistant",
-          type: "analysis",
-          content: "Great snap! Here's what I found",
-          analysis: {
-            foods: data.foodItems,
-            macros: data.macros,
-            nudge: data.nudge,
-          },
-        });
-
-        setTimeout(() => {
-          push({ role: "assistant", type: "text", content: "How full are you? Tap a number below!" });
-          setShowHunger(true);
-        }, 600);
       };
+
+      reader.onloadend = async () => {
+        try {
+          const base64 = reader.result.split(',')[1];
+          console.log('📸 base64 length:', base64?.length, 'starts:', base64?.slice(0, 30));
+
+          const response = await fetch('http://localhost:3001/api/meal/analyse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64, userId: 'guest' }),
+          });
+
+          console.log('📡 Response status:', response.status);
+          const data = await response.json();
+          console.log('📦 Response data:', data);
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to analyse meal');
+          }
+
+          setTodayMacros((prev) => ({
+            protein: prev.protein + (data.macros?.protein ?? 0),
+            carbs: prev.carbs + (data.macros?.carbs ?? 0),
+            fat: prev.fat + (data.macros?.fat ?? 0),
+            calories: prev.calories + (data.macros?.calories ?? 0),
+          }));
+
+          setLastMealData(data);
+          setIsTyping(false);
+
+          push({
+            role: "assistant",
+            type: "analysis",
+            content: "Great snap! Here's what I found",
+            analysis: {
+              foods: data.foodItems ?? [],
+              macros: data.macros ?? { protein: 0, carbs: 0, fat: 0, calories: 0 },
+              nudge: data.nudge ?? "",
+            },
+          });
+
+          setTimeout(() => {
+            push({ role: "assistant", type: "text", content: "How full are you? Tap a number below!" });
+            setShowHunger(true);
+          }, 600);
+
+        } catch (innerErr) {
+          console.error('❌ Fetch/parse error:', innerErr);
+          setIsTyping(false);
+          push({ role: "assistant", type: "text", content: "Sorry, something went wrong analysing your meal. Try again!" });
+        }
+      };
+
+      reader.readAsDataURL(file);
+
     } catch (err) {
+      console.error('❌ Upload error:', err);
       setIsTyping(false);
-      push({
-        role: "assistant",
-        type: "text",
-        content: "Sorry, something went wrong analysing your meal. Try again!",
-      });
+      push({ role: "assistant", type: "text", content: "Sorry, something went wrong analysing your meal. Try again!" });
     }
 
     e.target.value = "";
   };
 
-  // ── REAL HUNGER SAVE ──────────────────────────────────────────────────────
   const handleHungerSelect = async (h) => {
     setShowHunger(false);
     push({ role: "user", type: "text", content: h.emoji + " " + h.id + " - " + h.label });
@@ -409,10 +421,7 @@ export default function NudgeMyMacros() {
       await fetch('http://localhost:3001/api/meal/hunger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: 'guest',
-          rating: h.id,
-        }),
+        body: JSON.stringify({ userId: 'guest', rating: h.id }),
       });
     } catch (err) {
       console.warn('Failed to save hunger rating:', err);
@@ -420,17 +429,9 @@ export default function NudgeMyMacros() {
 
     simulateTyping(() => {
       if (h.id >= 4) {
-        push({
-          role: "assistant",
-          type: "text",
-          content: "Got it - this meal wasn't quite enough. Next time try adding a palm-sized protein source to stay fuller longer. You're doing great!",
-        });
+        push({ role: "assistant", type: "text", content: "Got it - this meal wasn't quite enough. Next time try adding a palm-sized protein source to stay fuller longer. You're doing great!" });
       } else {
-        push({
-          role: "assistant",
-          type: "text",
-          content: "Awesome - solid meal! Keep it up 💪",
-        });
+        push({ role: "assistant", type: "text", content: "Awesome - solid meal! Keep it up 💪" });
       }
     });
   };
@@ -440,11 +441,7 @@ export default function NudgeMyMacros() {
     push({ role: "user", type: "text", content: inputText });
     setInputText("");
     simulateTyping(() => {
-      push({
-        role: "assistant",
-        type: "text",
-        content: "Got it! Upload a meal photo whenever you're ready and I'll give you your macros and nudge.",
-      });
+      push({ role: "assistant", type: "text", content: "Got it! Upload a meal photo whenever you're ready and I'll give you your macros and nudge." });
     });
   };
 
@@ -457,9 +454,9 @@ export default function NudgeMyMacros() {
             <div style={s.bubbleBot}>{msg.content}</div>
           </div>
           <MealAnalysisCard
-            foods={msg.analysis.foods}
-            macros={msg.analysis.macros}
-            nudge={msg.analysis.nudge}
+            foods={msg.analysis?.foods ?? []}
+            macros={msg.analysis?.macros ?? { protein: 0, carbs: 0, fat: 0, calories: 0 }}
+            nudge={msg.analysis?.nudge ?? ""}
           />
         </div>
       );
@@ -493,9 +490,7 @@ export default function NudgeMyMacros() {
         button:hover { opacity: 0.85; }
         input::placeholder { color: rgba(255,255,255,0.35); }
       `}</style>
-
       <div style={s.app}>
-
         <header style={s.header}>
           <div style={s.headerLeft}>
             <div style={s.avatar}>N</div>
@@ -512,7 +507,6 @@ export default function NudgeMyMacros() {
           )}
         </header>
 
-        {/* ── Stats bar now uses REAL running totals ── */}
         {step === "done" && (
           <div style={s.statsBar}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -563,29 +557,10 @@ export default function NudgeMyMacros() {
         {step === "done" && !showHunger && (
           <div style={s.inputBar}>
             <div style={s.inputInner}>
-              <button style={s.camBtn} onClick={() => fileRef.current?.click()}>
-                Cam
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={handlePhotoUpload}
-              />
-              <input
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Ask Nudge anything..."
-                style={s.textInput}
-              />
-              <button
-                style={inputText.trim() ? s.sendBtnActive : s.sendBtnInactive}
-                onClick={handleSend}
-                disabled={!inputText.trim()}
-              >
+              <button style={s.camBtn} onClick={() => fileRef.current?.click()}>📷</button>
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
+              <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} placeholder="Ask Nudge anything..." style={s.textInput} />
+              <button style={inputText.trim() ? s.sendBtnActive : s.sendBtnInactive} onClick={handleSend} disabled={!inputText.trim()}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="22" y1="2" x2="11" y2="13" />
                   <polygon points="22 2 15 22 11 13 2 9 22 2" />
@@ -595,7 +570,6 @@ export default function NudgeMyMacros() {
             <p style={s.hint}>Tap the camera button to log a meal</p>
           </div>
         )}
-
       </div>
     </>
   );

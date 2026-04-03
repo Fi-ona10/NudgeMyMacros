@@ -1,42 +1,50 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
 export async function analyseImage(base64Image: string): Promise<string[]> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  console.log('🔑 Gemini key loaded:', apiKey ? `YES (${apiKey.slice(0, 8)}...)` : 'NO');
-
-  // 🔑 Fallback mock — returns fake data if no key is set
-  if (!apiKey || apiKey.trim() === '') {
-    console.warn('⚠️  No Gemini API key — returning mock food items');
-    return ['grilled chicken', 'brown rice', 'broccoli'];
-  }
-
-  // ✅ Created INSIDE the function so dotenv has already loaded
-  const genAI = new GoogleGenerativeAI(apiKey);
+  console.log('🤖 Calling Gemini Vision...');
 
   try {
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
+    // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,")
+    const base64Data = base64Image.includes(',')
+      ? base64Image.split(',')[1]
+      : base64Image;
 
     const result = await model.generateContent([
-      'List the food items visible in this image. Return only a JSON array of food item names, nothing else. Example: ["grilled chicken", "rice", "salad"]',
       {
         inlineData: {
-          data: base64Image,
           mimeType: 'image/jpeg',
+          data: base64Data,
         },
+      },
+      {
+        text: `You are a nutrition assistant. Look at this food image and list ONLY the food items you can see.
+Return ONLY a JSON array of food item names, nothing else.
+Example: ["greek yoghurt", "granola", "blueberries", "honey"]
+Be specific and accurate. Do not guess or use placeholder foods.`,
       },
     ]);
 
-    const text = result.response.text().trim();
+    const response = await result.response;
+    const text = response.text().trim();
+    console.log('✅ Gemini raw response:', text);
 
-    // Strip markdown code blocks if Gemini wraps the response in ```json ... ```
-    const cleaned = text.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/```$/, '').trim();
+    // Parse the JSON array from Gemini's response
+    const jsonMatch = text.match(/\[.*\]/s);
+    if (!jsonMatch) {
+      console.error('❌ Could not parse Gemini response as array:', text);
+      return ['unknown food'];
+    }
 
-    const parsed = JSON.parse(cleaned);
-    return parsed;
+    const foodItems: string[] = JSON.parse(jsonMatch[0]);
+    console.log('🍽️ Food items detected:', foodItems);
+    return foodItems;
 
-  } catch (err) {
-    console.error('❌ Gemini vision error:', err);
-    return ['unknown food'];
+  } catch (error) {
+    console.error('❌ Gemini Vision error:', error);
+    throw new Error('Failed to analyse image with Gemini');
   }
 }

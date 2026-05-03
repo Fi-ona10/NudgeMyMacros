@@ -92,10 +92,14 @@ router.post('/hunger', async (req: Request, res: Response) => {
 
     return res.json({ success: true });
 
-  } catch (error) {
-    console.error('❌ Error saving hunger log:', error);
-    return res.status(500).json({ error: 'Failed to save hunger rating' });
-  }
+} catch (error: any) {
+  console.error(':x: Meal analyse route error:', error);
+
+  return res.status(500).json({
+    error: 'Failed to analyse meal',
+    details: error.message,
+  });
+}
 });
 
 export default router;

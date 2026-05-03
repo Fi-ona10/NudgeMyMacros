@@ -21,8 +21,6 @@ app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
 });
 
-dotenv.config();
-
 // 🔑 Key validation on startup
 const requiredEnvVars = ['GEMINI_API_KEY', 'USDA_API_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_KEY'];
 for (const key of requiredEnvVars) {

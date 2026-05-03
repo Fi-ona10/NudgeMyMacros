@@ -1,8 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MacroSummary } from './macros';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
 export async function generateNudge(macros: MacroSummary): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -24,7 +22,8 @@ Be encouraging and specific to their macros.
 `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const genAI = new GoogleGenerativeAI(apiKey); // ✅ read at call time
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const result = await model.generateContent(prompt);
     const response = await result.response;

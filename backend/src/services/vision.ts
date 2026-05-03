@@ -5,7 +5,7 @@ export async function analyseImage(base64Image: string): Promise<string[]> {
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!); // ✅ read at call time
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,")
     const base64Data = base64Image.includes(',')

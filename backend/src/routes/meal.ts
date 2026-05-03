@@ -92,10 +92,9 @@ router.post('/hunger', async (req: Request, res: Response) => {
 
     return res.json({ success: true });
 
-} catch (error: any) {
-  console.error('❌ Error analysing meal:', error?.message || error);
-  console.error('Stack:', error?.stack);
-  return res.status(500).json({ error: 'Failed to analyse meal', details: error?.message });
+} catch (error) {
+  console.error('❌ Full error:', error);
+  res.status(500).json({ error: 'Failed to analyse meal', detail: String(error) });
 }
 
 });

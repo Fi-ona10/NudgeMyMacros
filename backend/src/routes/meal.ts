@@ -93,13 +93,11 @@ router.post('/hunger', async (req: Request, res: Response) => {
     return res.json({ success: true });
 
 } catch (error: any) {
-  console.error(':x: Meal analyse route error:', error);
-
-  return res.status(500).json({
-    error: 'Failed to analyse meal',
-    details: error.message,
-  });
+  console.error('❌ Error analysing meal:', error?.message || error);
+  console.error('Stack:', error?.stack);
+  return res.status(500).json({ error: 'Failed to analyse meal', details: error?.message });
 }
+
 });
 
 export default router;

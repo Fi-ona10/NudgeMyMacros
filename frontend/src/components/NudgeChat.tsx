@@ -352,8 +352,8 @@ export default function NudgeMyMacros() {
 
       reader.onloadend = async () => {
         try {
-          const base64 = reader.result.split(',')[1];
-          console.log('📸 base64 length:', base64?.length, 'starts:', base64?.slice(0, 30));
+          const base64 = reader.result;
+          console.log('📸 base64 length:', typeof base64 === 'string' ? base64.length : 0, 'starts:', typeof base64 === 'string' ? base64.slice(0, 30) : '');
 
           const response = await fetch('http://localhost:3001/api/meal/analyse', {
             method: 'POST',
@@ -366,7 +366,7 @@ export default function NudgeMyMacros() {
           console.log('📦 Response data:', data);
 
           if (!response.ok) {
-            throw new Error(data.error || 'Failed to analyse meal');
+            throw new Error(data.detail || data.error || 'Failed to analyse meal');
           }
 
           setTodayMacros((prev) => ({
@@ -398,7 +398,7 @@ export default function NudgeMyMacros() {
         } catch (innerErr) {
           console.error('❌ Fetch/parse error:', innerErr);
           setIsTyping(false);
-          push({ role: "assistant", type: "text", content: "Sorry, something went wrong analysing your meal. Try again!" });
+          push({ role: "assistant", type: "text", content: `Sorry, something went wrong analysing your meal. ${innerErr instanceof Error ? innerErr.message : "Try again!"}` });
         }
       };
 

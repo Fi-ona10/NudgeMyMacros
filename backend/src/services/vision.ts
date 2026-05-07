@@ -5,17 +5,16 @@ export async function analyseImage(base64Image: string): Promise<string[]> {
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!); // ✅ read at call time
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,")
-    const base64Data = base64Image.includes(',')
-      ? base64Image.split(',')[1]
-      : base64Image;
+    const dataUrlMatch = base64Image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
+    const mimeType = dataUrlMatch?.[1] ?? 'image/jpeg';
+    const base64Data = dataUrlMatch?.[2] ?? (base64Image.includes(',') ? base64Image.split(',')[1] : base64Image);
 
     const result = await model.generateContent([
       {
         inlineData: {
-          mimeType: 'image/jpeg',
+          mimeType,
           data: base64Data,
         },
       },
@@ -44,6 +43,6 @@ Be specific and accurate. Do not guess or use placeholder foods.`,
 
   } catch (error) {
     console.error('❌ Gemini Vision error:', error);
-    throw new Error('Failed to analyse image with Gemini');
+    throw new Error(`Failed to analyse image with Gemini: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

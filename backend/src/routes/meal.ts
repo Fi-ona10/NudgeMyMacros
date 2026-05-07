@@ -61,7 +61,10 @@ router.post('/analyse', async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('❌ Error analysing meal:', error);
-    return res.status(500).json({ error: 'Failed to analyse meal' });
+    return res.status(500).json({
+      error: 'Failed to analyse meal',
+      detail: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 

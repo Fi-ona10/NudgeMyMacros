@@ -23,7 +23,7 @@ Be encouraging and specific to their macros.
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey); // ✅ read at call time
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -31,6 +31,6 @@ Be encouraging and specific to their macros.
     return response.text().trim();
   } catch (error) {
     console.error(':x: Gemini Nudge error:', error);
-    throw new Error('Failed to generate nudge with Gemini');
+    throw new Error(`Failed to generate nudge with Gemini: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
